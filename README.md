@@ -1,8 +1,8 @@
-# Retirement notice
+# Notice
 
-This workshop was/will be retired effective July 30, 2022. At that time the repository will be archived, and the materials will not be maintained by Microsoft. I will be doing my best to keep this repository up to date!
+This workshop will not be maintained by Microsoft as of July 30, 2022. I plan on keeping this up to date and current!
 
-For questions or concerns regarding the MCW library, email us at [AskAlec](mailto:aah1@mac.com). Please remember to include the title of the workshop in your email.
+For questions or concerns regarding the MCW library, email [me (Alec)](mailto:aah1@mac.com). Please remember to include the title of the workshop in your email.
 
 # Continuous delivery in Azure DevOps
 
