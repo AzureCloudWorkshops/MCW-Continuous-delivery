@@ -38,14 +38,14 @@ Microsoft and the trademarks listed at <https://www.microsoft.com/en-us/legal/in
     - [Task 3: Editing the GitHub Workflow File Locally](#task-3-editing-the-github-workflow-file-locally)
     - [Task 4: Using Dependabot](#task-4-using-dependabot)
   - [Exercise 2: Continuous Delivery / Continuous Deployment](#exercise-2-continuous-delivery--continuous-deployment)
-    - [Task 1: Set up Cloud Infrastructure](#task-1-set-up-cloud-infrastructure)
-    - [Task 2: Deploy to Azure Web Application](#task-2-deploy-to-azure-web-application)
-    - [Task 3: Continuous Deployment with GitHub Actions](#task-3-continuous-deployment-with-github-actions)
-    - [Task 4: Branch Policies in GitHub (Optional)](#task-4-branch-policies-in-github-optional)
+    - [Task 1: Set up Cloud Infrastructure (Via CLI)](#task-1-set-up-cloud-infrastructure)
+    - [Task 2: Infrastructure As Code](#task-2-infrastructure-as-code)
+    - [Task 3: Deploy to Azure Web Application](#task-3-deploy-to-azure-web-application)
+    - [Task 4: Continuous Deployment with GitHub Actions](#task-4-continuous-deployment-with-github-actions)
+    - [Task 5: Branch Policies in GitHub (Optional)](#task-5-branch-policies-in-github-optional)
   - [Exercise 3: Monitoring, Logging, and Continuous Deployment with Azure](#exercise-3-monitoring-logging-and-continuous-deployment-with-azure)
     - [Task 1: Set up Application Insights](#task-1-set-up-application-insights)
-    - [Task 2: Linking Git commits to Azure DevOps issues](#task-2-linking-git-commits-to-azure-devops-issues)
-    - [Task 3: Continuous Deployment with Azure DevOps Pipelines](#task-3-continuous-deployment-with-azure-devops-pipelines)
+    - [Task 2: Continuous Deployment with Azure DevOps Pipelines](#task-2-continuous-deployment-with-azure-devops-pipelines)
   - [After the hands-on lab](#after-the-hands-on-lab)
     - [Task 1: Tear down Azure Resources](#task-1-tear-down-azure-resources)
 
@@ -203,11 +203,11 @@ Now that we have Docker images working locally, we can build automation in GitHu
        # https://github.com/docker/login-action
        - name: Log into registry ${{ env.REGISTRY }}
            if: github.event_name != 'pull_request'
-           uses: docker/login-action@28218f9b04b4f3f62068d7b6ce6ca5b26e35336c
+           uses: docker/login-action@v1
            with:
-           registry: ${{ env.REGISTRY }}
-           username: ${{ github.actor }}
-           password: ${{ secrets.CR_PAT }} # <-- Change this from GITHUB_TOKEN
+            registry: ${{ env.REGISTRY }}
+            username: ${{ github.actor }}
+            password: ${{ secrets.CR_PAT }} # <-- Change this from GITHUB_TOKEN
    ```
 
 8. Add explicit path to `Dockerfile` and context path to the `Build and push Docker image` step. This step will ensure the correct `Dockerfile` file can be found. The Build and push step should look like this:
@@ -217,7 +217,7 @@ Now that we have Docker images working locally, we can build automation in GitHu
    # https://github.com/docker/build-push-action
    - name: Build and push Docker image for ${{ env.API_IMAGE_NAME }}
      id: build-and-push
-     uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+     uses: docker/build-push-action@v2
      with:
        file: ./content-init/Dockerfile
        context: ./content-init
@@ -365,7 +365,7 @@ Another part of continuous integration is having a bot help track versions of th
 
 ## Exercise 2: Continuous Delivery / Continuous Deployment
 
-Duration: 40 minutes
+Duration: 50 minutes
 
 The Fabrikam Medical Conferences developer workflow has been improved. We are ready to consider migrating from running on-premises to a cloud implementation to reduce maintenance costs and facilitate scaling when necessary. We will take steps to run the containerized application in the cloud as well as automate its deployment.
 
@@ -379,143 +379,143 @@ The Fabrikam Medical Conferences developer workflow has been improved. We are re
 | Microsoft Learn - Introduction to continuous delivery                       | <https://docs.microsoft.com/learn/modules/introduction-to-continuous-delivery>        |
 | Microsoft Learn - Explain DevOps Continuous Delivery and Continuous Quality | <https://docs.microsoft.com/learn/modules/explain-devops-continous-delivery-quality/> |
 
-### Task 1: Set up Cloud Infrastructure
+### Task 1: Set up Cloud Infrastructure (Via CLI)
 
 First, we need to set up the cloud infrastructure. We will use PowerShell scripts and the Azure Command Line Interface (CLI) to set this up.
 
-1. Open your local GitHub folder for your `mcw-continuous-delivery-lab-files` repository.
+1.  Open your local GitHub folder for your `mcw-continuous-delivery-lab-files` repository.
 
-2. Open the `deploy-infrastructure.ps1` PowerShell script in the `infrastructure` folder. Add a custom lowercase three-letter abbreviation for the `$studentprefix` variable on the first line.
+2.  Open the `deploy-infrastructure.ps1` PowerShell script in the `infrastructure` folder. Add a custom lowercase three-letter abbreviation for the `$studentprefix` variable on the first line.
 
-   ```pwsh
-   $studentprefix = "Your 3 letter abbreviation here"  # <-- Modify this value
-   $resourcegroupName = "fabmedical-rg-" + $studentprefix
-   $cosmosDBName = "fabmedical-cdb-" + $studentprefix
-   $webappName = "fabmedical-web-" + $studentprefix
-   $planName = "fabmedical-plan-" + $studentprefix
-   $location1 = "westeurope"
-   $location2 = "northeurope"
-   ```
+    ```pwsh
+    $studentprefix = "Your 3 letter abbreviation here"  # <-- Modify this value
+    $resourcegroupName = "fabmedical-rg-" + $studentprefix
+    $cosmosDBName = "fabmedical-cdb-" + $studentprefix
+    $webappName = "fabmedical-web-" + $studentprefix
+    $planName = "fabmedical-plan-" + $studentprefix
+    $location1 = "westeurope"
+    $location2 = "northeurope"
+    ```
 
-3. Note the individual calls to the Azure CLI for the following:
+3.  Note the individual calls to the Azure CLI for the following:
 
-   - Creating a Resource Group
+    - Creating a Resource Group
 
-     ```pwsh
-     # Create resource group
-     az group create `
-         --location $location1 `
-         --name $resourcegroupName
-     ```
+      ```pwsh
+      # Create resource group
+      az group create `
+          --location $location1 `
+          --name $resourcegroupName
+      ```
 
-   - Creating an Azure Cosmos DB Database
+    - Creating an Azure Cosmos DB Database
 
-     ```pwsh
-     # Create Azure Cosmos DB database
-     az cosmosdb create `
-         --name $cosmosDBName `
-         --resource-group $resourcegroupName `
-         --locations regionName=$location1 failoverPriority=0 isZoneRedundant=False `
-         --locations regionName=$location2 failoverPriority=1 isZoneRedundant=True `
-         --enable-multiple-write-locations `
-         --kind MongoDB
-     ```
+      ```pwsh
+      # Create Azure Cosmos DB database
+      az cosmosdb create `
+          --name $cosmosDBName `
+          --resource-group $resourcegroupName `
+          --locations regionName=$location1 failoverPriority=0 isZoneRedundant=False `
+          --locations regionName=$location2 failoverPriority=1 isZoneRedundant=True `
+          --enable-multiple-write-locations `
+          --kind MongoDB `
+          --enable-free-tier true
+      ```
 
-   - Creating an Azure App Service Plan
+    - Creating an Azure App Service Plan
 
-     ```pwsh
-     # Create Azure App Service Plan
-     az appservice plan create `
-         --name $planName `
-         --resource-group $resourcegroupName `
-         --sku S1 `
-         --is-linux
-     ```
+           ```pwsh
+           # Create Azure App Service Plan
+           az appservice plan create `
+               --name $planName `
+               --resource-group $resourcegroupName `
+               --sku F1
+           ```
 
-   - Creating an Azure Web App
+    - Creating an Azure Web App
 
-     ```pwsh
-     # Create Azure Web App with NGINX container
-     az webapp create `
-         --resource-group $resourcegroupName `
-         --plan $planName `
-         --name $webappName `
-         --deployment-container-image-name nginx
-     ```
+      ```pwsh
+      # Create Azure Web App with NGINX container
+      az webapp create `
+          --resource-group $resourcegroupName `
+          --plan $planName `
+          --name $webappName `
+          --deployment-container-image-name nginx
+      ```
 
-4. Log into Azure using the Azure CLI.
+4.  Log into Azure using the Azure CLI.
 
-   ```pwsh
-   az login
-   az account set --subscription <your subscription guid>
-   ```
+    ```pwsh
+    az login
+    az account set --subscription <your subscription guid>
+    ```
 
-   **Note**: Your subscription plan guid is the `id` field that comes back in the response JSON. In the following example, the subscription guid is `726da029-91f0-4dc1-a728-f25664374559`.
+    **Note**: Your subscription plan guid is the `id` field that comes back in the response JSON. In the following example, the subscription guid is `726da029-91f0-4dc1-a728-f25664374559`.
 
-   ```json
-     {
-   "cloudName": "AzureCloud",
-   "homeTenantId": "8f4781a5-82b9-4181-a022-4e9e91028be4",
-   "id": "726da029-91f0-4dc1-a728-f25664374559",
-   "isDefault": true,
-   "managedByTenants": [],
-   "name": "Your Azure Subscription Name",
-   "state": "Enabled",
-   "tenantId": "8f4781a5-82b9-4181-a022-4e9e91028be4",
-   "user": {
-     "name": "your-name@your-domain.com",
-     "type": "user"
-   }
-   ```
+    ```json
+      {
+    "cloudName": "AzureCloud",
+    "homeTenantId": "8f4781a5-82b9-4181-a022-4e9e91028be4",
+    "id": "726da029-91f0-4dc1-a728-f25664374559",
+    "isDefault": true,
+    "managedByTenants": [],
+    "name": "Your Azure Subscription Name",
+    "state": "Enabled",
+    "tenantId": "8f4781a5-82b9-4181-a022-4e9e91028be4",
+    "user": {
+      "name": "your-name@your-domain.com",
+      "type": "user"
+    }
+    ```
 
-5. Run the `deploy-infrastructure.ps1` PowerShell script.
+5.  Run the `deploy-infrastructure.ps1` PowerShell script.
 
-   ```pwsh
-   cd ./infrastructure
-   ./deploy-infrastructure.ps1
-   ```
+    ```pwsh
+    cd ./infrastructure
+    ./deploy-infrastructure.ps1
+    ```
 
-   > **Note**: Depending on your system, you may need to change the PowerShell Execution Policy. You can read more about this process [here.](https://docs.microsoft.com/powershell/module/microsoft.powershell.core/about/about_execution_policies)
+    > **Note**: Depending on your system, you may need to change the PowerShell Execution Policy. You can read more about this process [here.](https://docs.microsoft.com/powershell/module/microsoft.powershell.core/about/about_execution_policies)
 
-6. Browse to [the Azure portal](https://portal.azure.com) and verify creation of the resource group, Azure Cosmos DB instance, the App Service Plan, and the Web App.
+6.  Browse to [the Azure portal](https://portal.azure.com) and verify creation of the resource group, Azure Cosmos DB instance, the App Service Plan, and the Web App.
 
-   ![Azure Resource Group containing cloud resources to which GitHub will deploy containers via the workflows defined in previous steps.](media/hol-ex2-task1-step6-1.png "Azure Resource Group")
+    ![Azure Resource Group containing cloud resources to which GitHub will deploy containers via the workflows defined in previous steps.](media/hol-ex2-task1-step6-1.png "Azure Resource Group")
 
-7. Open the `seed-cosmosdb.ps1` PowerShell script in the `infrastructure` folder of your lab files GitHub repository and add the same custom lowercase three-letter abbreviation we used in step 2 for the `$studentprefix` variable on the first line. Also update the `$githubAccount` variable with your GitHub account name.
+7.  Open the `seed-cosmosdb.ps1` PowerShell script in the `infrastructure` folder of your lab files GitHub repository and add the same custom lowercase three-letter abbreviation we used in step 2 for the `$studentprefix` variable on the first line. Also update the `$githubAccount` variable with your GitHub account name.
 
-   ```pwsh
-   $studentprefix = "Your 3 letter abbreviation here"
-   $githubAccount = "Your github account name here"
-   $resourcegroupName = "fabmedical-rg-" + $studentprefix
-   $cosmosDBName = "fabmedical-cdb-" + $studentprefix
-   ```
+    ```pwsh
+    $studentprefix = "Your 3 letter abbreviation here"
+    $githubAccount = "Your github account name here"
+    $resourcegroupName = "fabmedical-rg-" + $studentprefix
+    $cosmosDBName = "fabmedical-cdb-" + $studentprefix
+    ```
 
-8. Observe the call to fetch the MongoDB connection string for the Azure Cosmos DB database.
+8.  Observe the call to fetch the MongoDB connection string for the Azure Cosmos DB database.
 
-   ```pwsh
-   # Fetch Azure Cosmos DB Mongo connection string
-   $mongodbConnectionString = `
-       $(az cosmosdb keys list `
-           --name $cosmosDBName `
-           --resource-group $resourcegroupName `
-           --type connection-strings `
-           --query 'connectionStrings[0].connectionString')
-   ```
+    ```pwsh
+    # Fetch Azure Cosmos DB Mongo connection string
+    $mongodbConnectionString = `
+        $(az cosmosdb keys list `
+            --name $cosmosDBName `
+            --resource-group $resourcegroupName `
+            --type connection-strings `
+            --query 'connectionStrings[0].connectionString')
+    ```
 
-9. The call to seed the Azure Cosmos DB database is using the MongoDB connection string passed as an environment variable (`MONGODB_CONNECTION`) to the `fabrikam-init` docker image we built in the previous exercise using `docker-compose`.
+9.  The call to seed the Azure Cosmos DB database is using the MongoDB connection string passed as an environment variable (`MONGODB_CONNECTION`) to the `fabrikam-init` docker image we built in the previous exercise using `docker-compose`.
 
-   ```pwsh
-   # Seed Azure Cosmos DB database
-   docker run -ti `
-       -e MONGODB_CONNECTION="$mongodbConnectionString" `
-       ghcr.io/$githubAccount/fabrikam-init:main
-   ```
+    ```pwsh
+    # Seed Azure Cosmos DB database
+    docker run -ti `
+        -e MONGODB_CONNECTION="$mongodbConnectionString" `
+        ghcr.io/$githubAccount/fabrikam-init:main
+    ```
 
-   > **Note**: Before you pull this image, you may need to authenticate with the GitHub Docker registry. To do this, run the following command before you execute the script. Fill the placeholder appropriately. Use your PAT when it prompts for the password.
+    > **Note**: Before you pull this image, you may need to authenticate with the GitHub Docker registry. To do this, run the following command before you execute the script. Fill the placeholder appropriately. Use your PAT when it prompts for the password.
 
-   ```pwsh
-   docker login ghcr.io -u [USERNAME]
-   ```
+    ```pwsh
+    docker login ghcr.io -u [USERNAME]
+    ```
 
 10. Run the `seed-cosmosdb.ps1` PowerShell script. Browse to [the Azure portal](https://portal.azure.com) and verify that the Azure Cosmos DB instance has been seeded.
 
@@ -556,7 +556,100 @@ First, we need to set up the cloud infrastructure. We will use PowerShell script
 
     ![Azure Web Application settings reflecting the `MONGODB_CONNECTION` environment variable configured via PowerShell.](media/hol-ex2-task1-step15-1.png "Azure Web Application settings")
 
-### Task 2: Deploy to Azure Web Application
+### Task 2: Infrastructure As Code
+
+Now that we have deployed our code via the CLI we now want to have a way of keeping our infrastructure current and so we don't have to run powershell scripts. There are a ton of reasons to use [IAC a few of which are here.](https://www.azurebarista.com/infrastructure-as-code/) The major one over using the CLI is you can lock down a pipeline to run an IAC file instead of having to have all of the rights required to run the CLI. In any organization with security and audits the more locked down the better. This also helps reduce any risk of any individual being compromised. Assuming good dev practices in order to break cloud infrastructure you would have to compromise a user, check in a change, have someone (other than the author) approve it, then it gets merged in assuming the pipeline doesn't break. That's a lot of steps to have be compromised and even if they are there is a huge paper trail to document it. The only minor difference is there must be a resource group created prior to any IAC process.
+
+We want to start by creating a file called infrastructure.bicep (for the best experience you might want to install VS Code and the Bicep extension). You can use just notepad or any text editor too.
+
+To start we are going to declare all of the values we defined in our infrastructure.ps1 script.
+
+```Bicep
+param studentprefix string = 'Your 3 letter abbreviation here'
+param resourcegroupName string = 'fabmedical-rg-${studentprefix}'
+param cosmosDBName string = 'fabmedical-cdb-${studentprefix}'
+param webappName string = 'fabmedical-web-${studentprefix}'
+param planName string = 'fabmedical-plan-${studentprefix}'
+```
+
+The reason we are using params here instead of variables is these are all things our parent YAML pipeline can overwrite if we want. However, if we don't do anything they will all have a default value. Next, we want to declare our variables that don't/won't change
+
+```Bicep
+var location1 = 'westeurope'
+var location2 = 'northeurope'
+```
+
+These are the locations we are going to use at a later stages.
+
+The first resource we are going to declare is the cosmos Db. This is to get parity to the CLI command we are running.
+
+```Bicep
+resource cosmosdb 'Microsoft.DocumentDB/databaseAccounts@2021-11-15-preview' = {
+  name: cosmosDBName
+  location: resourceGroupLocation
+  kind: 'MongoDB'
+  properties: {
+    locations: [
+      {
+        locationName: location1
+        failoverPriority: 0
+        isZoneRedundant: false
+      }
+      {
+        locationName: location2
+        failoverPriority: 1
+        isZoneRedundant: true
+      }
+    ]
+    enableMultipleWriteLocations: true
+    enableFreeTier: true
+    databaseAccountOfferType: 'Standard'
+  }
+}
+```
+
+After that following deploy-infra we need to declare an app service plan.
+
+```Bicep
+resource appServicePlan 'Microsoft.Web/serverfarms@2020-06-01' = {
+  name: planName
+  location: resourceGroupLocation
+  properties: {
+    reserved: true
+  }
+  sku: {
+    name: 'F1'
+  }
+  kind: 'linux'
+}
+```
+
+The next one is the actual container on our app service
+
+```Bicep
+
+resource webApp 'Microsoft.Web/sites@2020-06-01' = {
+  name: webappName
+  location: resourceGroupLocation
+  properties: {
+    serverFarmId: appServicePlan.id
+    siteConfig: {
+      linuxFxVersion: 'DOCKER|nginx'
+    }
+  }
+}
+```
+
+Finally is the output of the connection string
+
+```Bicep
+#disable-next-line outputs-should-not-contain-secrets
+output mongodbConnectionString string = listSecrets(cosmosdb.id, cosmosdb.apiVersion).connectionStrings[0].connectionString
+```
+
+You can see the full file on infrastructure.bicep!
+
+### Task 3: Deploy to Azure Web Application
 
 Once the infrastructure is in place, then we can deploy the code to Azure. In this task, you will deploy the application to an Azure Web Application using a PowerShell script that makes calls with the Azure CLI.
 
@@ -565,6 +658,8 @@ Once the infrastructure is in place, then we can deploy the code to Azure. In th
    ```pwsh
    $env:CR_PAT="<GitHub Personal Access Token>"
    ```
+
+````
 
 2. Open the `deploy-webapp.ps1` PowerShell script in the `infrastructure` folder of your lab files GitHub repository and add the same custom lowercase three-letter abbreviation we used in step 1 for the `$studentprefix` variable on the first line and add your GitHub account name for the `$githubAccount` variable on the second line.
 
@@ -603,7 +698,7 @@ Once the infrastructure is in place, then we can deploy the code to Azure. In th
 
    ![The Contoso Conference website hosted in Azure.](media/hol-ex2-task2-step6-2.png "Azure hosted Web Application")
 
-### Task 3: Continuous Deployment with GitHub Actions
+### Task 4: Continuous Deployment with GitHub Actions
 
 With the infrastructure in place, we can set up continuous deployment with GitHub Actions.
 
@@ -658,9 +753,18 @@ With the infrastructure in place, we can set up continuous deployment with GitHu
        - uses: actions/checkout@v2
 
        - name: Login on Azure CLI
-         uses: azure/login@v1.1
+         uses: azure/login@v1
          with:
            creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Deploys infrastructure file
+      - name: Run bicep deploy
+        id: deploy
+        uses: azure/arm-deploy@v1
+        with:
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION }}
+          resourceGroupName: $resourcegroupName
+          template: ./infrastructure/deploy.bicep
 
        - name: Deploy WebApp
          shell: pwsh
@@ -686,7 +790,7 @@ With the infrastructure in place, we can set up continuous deployment with GitHu
 
 7. Perform a `git pull` on your local repository folder to fetch the latest changes from GitHub.
 
-### Task 4: Branch Policies in GitHub (Optional)
+### Task 5: Branch Policies in GitHub (Optional)
 
 In many enterprises, committing to `main` is restricted. Branch policies are used to control how code gets to `main`. This allows you to set up gates on delivery, such as requiring code reviews and status checks. In this task, you will create a branch protection rule and see it in action.
 
@@ -793,48 +897,9 @@ In this task, we will set up Application Insights to gain some insights on how o
 
 8. Visit the deployed website and check Application Insights in [the Azure portal](https://portal.azure.com) to see instrumentation data.
 
-### Task 2: Linking Git commits to Azure DevOps issues
-
-In this task, you will create an issue in Azure DevOps and link a Git pull request from GitHub to the Azure DevOps issue. This uses the Azure Boards integration that was set up in the Before Hands on Lab.
-
-1. Create a new issue for modifying the README.md in Azure Boards
-
-   !["New issue for updating README.md added to Azure Boards"](media/hol-ex2-task3-step4-1.png "Azure Boards")
-
-   > **Note**: Make note of the issue number, as you will need it for a later step.
-
-2. Create a branch from `main` and name it `feature/update-readme`.
-
-   ```pwsh
-   git checkout main
-   git checkout -b feature/update-readme  # <- This creates the branch and checks it out
-   ```
-
-3. Make a small change to README.md. Commit the change, and push it to GitHub.
-
-   ```pwsh
-   git commit -m "README.md update"
-   git push --set-upstream origin feature/update-readme
-   ```
-
-4. Create a pull request to merge `feature/update-readme` into `main` in GitHub. Add the annotation `AB#YOUR_ISSUE_NUMBER_FROM_STEP_4` in the description of the pull request to link the GitHub pull request with the new Azure Boards issue in step 4. For example, if your issue number is 2, then your annotation in the pull request description should include `AB#2`.
-
-   > **Note**: The `Docker` build workflow executes as part of the status checks.
-
-5. Select the `Merge pull request` button after the build completes successfully to merge the Pull Request into `main`.
-
-   !["Pull request for merging the feature/update-main branch into main"](media/hol-ex2-task3-step7-1.png "Create pull request")
-
-   > **Note**: Under normal circumstances, this pull request would be reviewed by someone other than the author of the pull request. For now, use your administrator privileges to force the merge of the pull request.
-
-6. Observe in Azure Boards that the Issue is appropriately linked to the GitHub comment.
-
-   !["The Update README.md issue with the comment from the pull request created in step 6 linked"](media/hol-ex2-task3-step8-1.png "Azure Boards Issue")
-
-### Task 3: Continuous Deployment with Azure DevOps Pipelines
+### Task 2: Continuous Deployment with Azure DevOps Pipelines
 
 > **Note**: This section demonstrates Continuous Deployment via ADO pipelines, which is equivalent to the Continuous Deployment via GitHub Actions demonstrated in Task 2. For this reason, disabling GitHub action here is critical so that both pipelines (ADO & GitHub Actions) don't interfere with each other.
-> **Note**: To complete [Exercise 3: Task 3](#task-3-continuous-deployment-with-azure-devops-pipelines), the student will need to request a free grant of parallel jobs in Azure Pipelines via [this form](https://aka.ms/azpipelines-parallelism-request). More information can be found [here regarding changes in Azure Pipelines Grant for Public Projects](https://devblogs.microsoft.com/devops/change-in-azure-pipelines-grant-for-public-projects/)
 
 1. Disable your GitHub Actions by adding the `branches-ignore` property to the existing workflows in your lab files repository (located under the `.github/workflows` folder).
 
@@ -1079,3 +1144,4 @@ Now that the lab is done, we are done with our Azure resources. It is good pract
 2. Execute the `teardown-infrastructure.ps1` PowerShell script to tear down the Azure resources for this lab.
 
 You should follow all steps provided _after_ attending the Hands-on lab.
+````
